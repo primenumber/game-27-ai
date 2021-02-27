@@ -1,3 +1,3 @@
 fn main() {
-    game27::game27::start().unwrap();
+    game27::play::start().unwrap();
 }
