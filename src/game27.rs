@@ -627,6 +627,40 @@ mod tests {
         }
     }
     #[test]
+    fn test_board_opt() {
+        let mut board = Game27Opt::new();
+        let playable = board.playable();
+
+        let mut expected_playable = vec![];
+        for i in 1..SIZE+1 {
+           expected_playable.push((0, i))
+        }
+
+        fn same_action(e: Vec<Action>, g: Vec<(usize, usize)>) {
+            assert_eq!(e.len(), g.len());
+            for (y, x) in g {
+                assert!(e.iter().any(|a| a == &Action::Move(y, x)))
+            }
+        }
+        println!("{:?}", board);
+        println!("{:?}", playable);
+        same_action(playable, expected_playable);
+
+        board.act(Action::Move(0, 4)).unwrap();
+        println!("{}", board);
+        println!("{:?}", board.playable());
+        //assert_eq!(board.board[0].len(), SIZE - 4);
+        //assert_eq!(board.board[1].len(), 4);
+
+        let moves = [(8, 8), (1, 4), (7, 4), (3, 4), (7, 3), (0, 4)];
+        for (c, i) in &moves {
+            println!("{} {}", c, i);
+            board.act(Action::Move(*c, *i)).unwrap();
+            println!("{}", board);
+            println!("{:?}", board.playable());
+        }
+    }
+    #[test]
     fn test_player() {
         let mut p0 = RandomPlayer::new();
         let mut p1 = RandomPlayer::new();
