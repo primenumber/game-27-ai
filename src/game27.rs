@@ -186,6 +186,7 @@ pub struct Game27Opt {
     first_turn: bool,
 }
 impl Game27Opt {
+    #[allow(dead_code)]
     fn to_str(&self) -> String {
         let mut result = String::with_capacity(26);
         for i in 0..26 {
@@ -214,6 +215,7 @@ impl Game27Opt {
     fn move_to(&self, c: usize) -> isize {
         c as isize + self.count_tower() as isize * (if self.first_turn { 1 } else { -1 })
     }
+    #[allow(dead_code)]
     fn tower_sizes(&self) -> [usize; SIZE] {
         const MASK: u64 = 0x002A_AAAA_AAAA_AAAA;
         let mut result = [0; SIZE];
@@ -346,12 +348,7 @@ impl TGame27 for Game27Opt {
 }
 impl fmt::Display for Game27Opt {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let ch = |p| match p {
-            Piece::First => "O",
-            Piece::Second => "X",
-        };
-        let mut s = String::new();
-        s = format!("{}\n", self.to_str());
+        let mut s = format!("{}\n", self.to_str());
         if self.is_end() {
             s = format!("{}Over! Result: {}\n", s, self.result());
         } else {
