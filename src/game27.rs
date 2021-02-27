@@ -297,6 +297,20 @@ impl Game27Opt {
     fn move_to(&self, c: usize) -> isize {
         c as isize + self.count_tower() as isize * (if self.first_turn { 1 } else { -1 })
     }
+    fn tower_sizes(&self) -> [usize; SIZE] {
+        const MASK: u64 = 0x002A_AAAA_AAAA_AAAA;
+        let mut result = [0; SIZE];
+        let mut top_bits = self.tower_tops();
+        let mut bits = self.board;
+        for count in &mut result {
+            let bit = top_bits & top_bits.wrapping_neg();
+            top_bits ^= bit;
+            let tower = bits & (bit - 1);
+            bits ^= tower;
+            *count = (tower & MASK).count_ones() as usize;
+        }
+        result
+    }
 }
 impl TGame27 for Game27Opt {
     fn new() -> Game27Opt {
@@ -649,8 +663,9 @@ mod tests {
         board.act(Action::Move(0, 4)).unwrap();
         println!("{}", board);
         println!("{:?}", board.playable());
-        //assert_eq!(board.board[0].len(), SIZE - 4);
-        //assert_eq!(board.board[1].len(), 4);
+        let sizes = board.tower_sizes();
+        assert_eq!(sizes[0], SIZE - 4);
+        assert_eq!(sizes[1], 4);
 
         let moves = [(8, 8), (1, 4), (7, 4), (3, 4), (7, 3), (0, 4)];
         for (c, i) in &moves {
