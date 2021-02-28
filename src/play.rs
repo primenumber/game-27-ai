@@ -117,10 +117,7 @@ impl<T: TGame27> AlphaBetaPlayer<T> {
         for p in vp {
             let mut next = b.clone();
             next.act(p).unwrap();
-            let next_depth = match p {
-                Action::Pass => depth,
-                _ => depth-1,
-            };
+            let next_depth = depth - 1;
             let child_result = -self.alpha_beta(&next, -beta, -alpha, next_depth);
             result = max(result, child_result);
             if result >= beta {
