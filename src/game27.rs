@@ -229,6 +229,37 @@ impl Game27Opt {
         }
         result
     }
+    fn to_game27_tower(&self, mut bits: u64) -> Vec<Piece> {
+        let mut tower = Vec::new();
+        while bits > 0 {
+            let lowest = bits & 0b11;
+            let piece = match lowest {
+                0b10 => Some(Piece::First),
+                0b11 => Some(Piece::Second),
+                _ => None
+            };
+            tower.push(piece.unwrap());
+            bits >>= 2;
+        }
+        tower.reverse();
+        tower
+    }
+    #[allow(dead_code)]
+    fn to_game27(&self) -> Game27 {
+        let mut towers: [Vec<Piece>; SIZE] = Default::default();
+        let mut top_bits = self.tower_tops();
+        let mut bits = self.board;
+        let mut old_offset = 0;
+        for c in 0..SIZE {
+            let top_bit = top_bits & top_bits.wrapping_neg();
+            let tower_bits = bits & (top_bit - 1);
+            top_bits ^= top_bit;
+            bits ^= tower_bits;
+            towers[c] = self.to_game27_tower(tower_bits >> old_offset);
+            old_offset = top_bit.trailing_zeros() + 1;
+        }
+        Game27 { board: towers, first_turn: self.first_turn }
+    }
 }
 impl TGame27 for Game27Opt {
     fn new() -> Game27Opt {
@@ -393,7 +424,11 @@ mod tests {
     #[test]
     fn test_board_opt() {
         let mut board = Game27Opt::new();
+        let mut board_naive = Game27::new();
+        assert_eq!(board.to_game27(), board_naive);
         let playable = board.playable();
+        let playable_naive = board.playable();
+        assert_eq!(playable, playable_naive);
 
         let mut expected_playable = vec![];
         for i in 1..SIZE+1 {
@@ -411,8 +446,10 @@ mod tests {
         same_action(playable, expected_playable);
 
         board.act(Action::Move(0, 4)).unwrap();
+        board_naive.act(Action::Move(0, 4)).unwrap();
         println!("{}", board);
         println!("{:?}", board.playable());
+        assert_eq!(board.to_game27(), board_naive);
         let sizes = board.tower_sizes();
         assert_eq!(sizes[0], SIZE - 4);
         assert_eq!(sizes[1], 4);
@@ -421,8 +458,10 @@ mod tests {
         for (c, i) in &moves {
             println!("{} {}", c, i);
             board.act(Action::Move(*c, *i)).unwrap();
+            board_naive.act(Action::Move(*c, *i)).unwrap();
             println!("{}", board);
             println!("{:?}", board.playable());
+            assert_eq!(board.to_game27(), board_naive);
         }
     }
 }
