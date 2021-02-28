@@ -170,7 +170,7 @@ fn bit_rotate_in_range(bits: u64, first: usize, middle: usize, last: usize) -> u
     let mask3 = !(to_last ^ to_first);
     (bits & mask3) | ((bits & mask1) >> (middle - first)) | ((bits & mask2) << (last - middle))
 }
-fn partail_bitwise_or(mut bits: u64) -> u64 {
+fn partial_bitwise_or(mut bits: u64) -> u64 {
     bits |= bits >> 1;
     bits |= bits >> 2;
     bits |= bits >> 4;
@@ -339,7 +339,7 @@ impl TGame27 for Game27Opt {
         const MASK: u64 = 0x002A_AAAA_AAAA_AAAA;
         let top_bits = self.tower_tops();
         let except_last = top_bits ^ (1 << 53);
-        let last_tower = self.board & !partail_bitwise_or(except_last);
+        let last_tower = self.board & !partial_bitwise_or(except_last);
         let f = (last_tower & MASK).count_ones();
         let first_tower = self.board & (top_bits ^ (top_bits - 1));
         let s = (first_tower & MASK).count_ones();
