@@ -113,8 +113,7 @@ impl<T: TGame27> AlphaBetaPlayer<T> {
     }
     fn alpha_beta_impl(&mut self, b: &T, mut alpha: isize, beta: isize, depth: isize) -> isize {
         let mut result = -10000;
-        let vp = b.playable();
-        for p in vp {
+        for p in b.playable_generator() {
             let mut next = b.clone();
             next.act(p).unwrap();
             let next_depth = depth - 1;
