@@ -8,7 +8,9 @@ pub enum Piece {
 const SIZE: usize = 9;
 
 pub trait TGame27: Eq + Hash + Clone {
+    type ActionItr: Iterator<Item=Action>;
     fn new() -> Self;
+    fn playable_generator(&self) -> Self::ActionItr;
     fn playable(&self) -> Vec<Action>;
     fn active(&self) -> Piece;
     fn is_end(&self) -> bool;
@@ -55,12 +57,16 @@ impl Game27 {
 }
 
 impl TGame27 for Game27 {
+    type ActionItr = std::vec::IntoIter<Action>;
     fn new() -> Game27 {
         use Piece::*;
         let mut board : [Vec<Piece>; SIZE]= Default::default();
         board[0] = vec![First; SIZE];
         board[SIZE-1] = vec![Second; SIZE];
         Game27 { board, first_turn: true }
+    }
+    fn playable_generator(&self) -> Self::ActionItr {
+        self.playable().into_iter()
     }
     fn playable(&self) -> Vec<Action> {
         let mut res = vec![];
@@ -185,6 +191,22 @@ pub struct Game27Opt {
     board: u64,
     first_turn: bool,
 }
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum Game27OptPlayableItrState {
+    Initialized,
+    Started,
+    Completed
+}
+pub struct Game27OptPlayableItr {
+    top_bits: u64,
+    bits: u64,
+    state: Game27OptPlayableItrState,
+    first_turn: bool,
+    tower_size: usize,
+    c: usize,
+    i: usize,
+    delta: isize,
+}
 const BOARD_MASK: u64 = 0x002A_AAAA_AAAA_AAAA;
 impl Game27Opt {
     #[allow(dead_code)]
@@ -212,8 +234,11 @@ impl Game27Opt {
         };
         flag.count_ones() as usize
     }
+    fn delta(&self) -> isize {
+        self.count_tower() as isize * (if self.first_turn { 1 } else { -1 })
+    }
     fn move_to(&self, c: usize) -> isize {
-        c as isize + self.count_tower() as isize * (if self.first_turn { 1 } else { -1 })
+        c as isize + self.delta()
     }
     fn is_movable(&self) -> bool {
         let mut top_bits = self.tower_tops();
@@ -363,13 +388,76 @@ impl Game27Opt {
         }
     }
 }
+impl Iterator for Game27OptPlayableItr {
+    type Item = Action;
+    fn next(&mut self) -> Option<Action> {
+        if self.state == Game27OptPlayableItrState::Completed {
+            return None;
+        }
+        if self.i > self.tower_size {
+            self.c += 1;
+        }
+        if self.state == Game27OptPlayableItrState::Initialized || self.i > self.tower_size {
+            while self.c < SIZE {
+                let top_bit = self.top_bits & self.top_bits.wrapping_neg();
+                let tower = self.bits & (top_bit - 1);
+                self.top_bits ^= top_bit;
+                self.bits ^= tower;
+                if tower == 0 {
+                    self.c += 1;
+                    continue;
+                }
+                let d = self.c as isize + self.delta;
+                if d < 0 || SIZE as isize <= d {
+                    self.c += 1;
+                    continue;
+                }
+                let tower_size = (tower & BOARD_MASK).count_ones() as usize;
+                let is_tower_top_first = (top_bit & (tower << 3)) == 0;
+                if self.first_turn == is_tower_top_first {
+                    self.tower_size = tower_size;
+                    self.i = 2;
+                    self.state = Game27OptPlayableItrState::Started;
+                    return Some(Action::Move(self.c, 1));
+                }
+                self.c += 1;
+            }
+            let result = if self.state == Game27OptPlayableItrState::Started {
+                None
+            } else {
+                Some(Action::Pass)
+            };
+            self.state = Game27OptPlayableItrState::Completed;
+            result
+        } else {
+            let result = Action::Move(self.c, self.i);
+            self.i += 1;
+            Some(result)
+        }
+    }
+}
 impl TGame27 for Game27Opt {
+    type ActionItr = Game27OptPlayableItr;
     fn new() -> Game27Opt {
         // B(Base): 00
         // F(First): 10
         // S(Second): 11
         // MSB <- BBBB_BBSS_SSSS_SSSB_BBBB_BBBF_FFFF_FFFF -> LSB
         Game27Opt { board: 0x000F_FFFC_0002_AAAA, first_turn: true }
+    }
+    fn playable_generator(&self) -> Game27OptPlayableItr {
+        let top_bits = self.tower_tops();
+        let bits = self.board;
+        Game27OptPlayableItr {
+            top_bits,
+            bits,
+            state: Game27OptPlayableItrState::Initialized,
+            first_turn: self.first_turn,
+            tower_size: 0,
+            c: 0,
+            i: 0,
+            delta: self.delta(),
+        }
     }
     fn playable(&self) -> Vec<Action> {
         let mut res = Vec::with_capacity(SIZE);
