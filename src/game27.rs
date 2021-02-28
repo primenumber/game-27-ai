@@ -185,6 +185,7 @@ pub struct Game27Opt {
     board: u64,
     first_turn: bool,
 }
+const BOARD_MASK: u64 = 0x002A_AAAA_AAAA_AAAA;
 impl Game27Opt {
     #[allow(dead_code)]
     fn to_str(&self) -> String {
@@ -201,8 +202,7 @@ impl Game27Opt {
         result
     }
     fn tower_tops(&self) -> u64 {
-        const MASK: u64 = 0x002A_AAAA_AAAA_AAAA;
-        MASK & !self.board
+        BOARD_MASK & !self.board
     }
     fn count_tower(&self) -> usize {
         let flag = if self.first_turn {
@@ -217,7 +217,6 @@ impl Game27Opt {
     }
     #[allow(dead_code)]
     fn tower_sizes(&self) -> [usize; SIZE] {
-        const MASK: u64 = 0x002A_AAAA_AAAA_AAAA;
         let mut result = [0; SIZE];
         let mut top_bits = self.tower_tops();
         let mut bits = self.board;
@@ -226,7 +225,7 @@ impl Game27Opt {
             top_bits ^= bit;
             let tower = bits & (bit - 1);
             bits ^= tower;
-            *count = (tower & MASK).count_ones() as usize;
+            *count = (tower & BOARD_MASK).count_ones() as usize;
         }
         result
     }
@@ -240,7 +239,6 @@ impl TGame27 for Game27Opt {
         Game27Opt { board: 0x000F_FFFC_0002_AAAA, first_turn: true }
     }
     fn playable(&self) -> Vec<Action> {
-        const MASK: u64 = 0x002A_AAAA_AAAA_AAAA;
         let mut res = vec![];
         let mut top_bits = self.tower_tops();
         let mut bits = self.board;
@@ -252,7 +250,7 @@ impl TGame27 for Game27Opt {
             if tower == 0 {
                 continue;
             }
-            let tower_size = (tower & MASK).count_ones() as usize;
+            let tower_size = (tower & BOARD_MASK).count_ones() as usize;
             let is_tower_top_first = (top_bit & (tower << 3)) == 0;
             if self.first_turn == is_tower_top_first {
                 for i in 1..=tower_size {
@@ -299,9 +297,8 @@ impl TGame27 for Game27Opt {
                 if !(c < SIZE) {
                     return Err(format!("The column is over SIZE: c = {}", c))
                 }
-                const MASK: u64 = 0x002A_AAAA_AAAA_AAAA;
                 let tower = self.board & ((tower_top_bits[c+1] - 1) ^ (tower_top_bits[c] - 1));
-                let tower_size = (tower & MASK).count_ones() as usize;
+                let tower_size = (tower & BOARD_MASK).count_ones() as usize;
                 if !(tower_size > 0) {
                     return Err(format!("The column has no tower: c = {}, {}", c, self))
                 }
@@ -336,13 +333,12 @@ impl TGame27 for Game27Opt {
         Ok(())
     }
     fn result(&self) -> isize {
-        const MASK: u64 = 0x002A_AAAA_AAAA_AAAA;
         let top_bits = self.tower_tops();
         let except_last = top_bits ^ (1 << 53);
         let last_tower = self.board & !partial_bitwise_or(except_last);
-        let f = (last_tower & MASK).count_ones();
+        let f = (last_tower & BOARD_MASK).count_ones();
         let first_tower = self.board & (top_bits ^ (top_bits - 1));
-        let s = (first_tower & MASK).count_ones();
+        let s = (first_tower & BOARD_MASK).count_ones();
         f as isize - s as isize
     }
 }
