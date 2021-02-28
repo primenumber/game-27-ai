@@ -260,6 +260,87 @@ impl Game27Opt {
         }
         Game27 { board: towers, first_turn: self.first_turn }
     }
+    fn reverse_towers_board(mut bits: u64) -> u64 {
+        let mut top_bits = BOARD_MASK & !bits;
+        let mut old_offset = 0;
+        let mut result = 0;
+        for _c in 0..SIZE {
+            let top_bit = top_bits & top_bits.wrapping_neg();
+            let tower_bits = bits & (top_bit - 1);
+            top_bits ^= top_bit;
+            bits ^= tower_bits;
+            let new_offset = top_bit.trailing_zeros() + 1;
+            result <<= new_offset - old_offset;
+            result |= tower_bits >> old_offset;
+            old_offset = new_offset;
+        }
+        result
+    }
+    fn normalize(&self) -> u64 {
+        if self.first_turn {
+            self.board
+        } else {
+            Self::reverse_towers_board(self.board)
+        }
+    }
+    #[allow(dead_code)]
+    fn compress_bits(&self) -> u64 {
+        // 5*5 + 1 pieces -> 5*8 + 2 bits = 42-bit
+        let mut norm_bits = self.normalize();
+        let mut result = 0;
+        for i in 0..5 {
+            let mut five_pieces = norm_bits & 0x3FF;
+            let mut index = 0;
+            for _j in 0..5 {
+                let lowest = five_pieces & 0b11;
+                index *= 3;
+                match lowest {
+                    0b00 => index += 0, // Base
+                    0b10 => index += 1, // First
+                    0b11 => index += 2, // Second
+                    _ => panic!()
+                };
+                five_pieces >>= 2;
+            }
+            result |= index << (i * 8);
+            norm_bits >>= 10;
+        }
+        result |= norm_bits << 40;
+        result
+    }
+    #[allow(dead_code)]
+    fn uncomress_bits(mut bits: u64) -> u64 {
+        // 5*8 + 2 bits -> 5*5 + 1 pieces = 26-pcs
+        let mut result = 0;
+        for i in 0..5 {
+            let mut index = bits & 0xFF;
+            let mut five_pieces = 0;
+            for _j in 0..5 {
+                let lowest = index % 3;
+                five_pieces <<= 2;
+                match lowest {
+                    0 => five_pieces |= 0b00,
+                    1 => five_pieces |= 0b10,
+                    2 => five_pieces |= 0b11,
+                    _ => panic!()
+                };
+                index /= 3;
+            }
+            result |= five_pieces << (i * 10);
+            bits >>= 8;
+        }
+        result |= bits << 50;
+        result
+    }
+    #[allow(dead_code)]
+    fn game_from_bits(bits: u64, first_turn: bool) -> Game27Opt {
+        let uc_bits = Self::uncomress_bits(bits);
+        if first_turn {
+            Game27Opt { board: uc_bits, first_turn: first_turn }
+        } else {
+            Game27Opt { board: Self::reverse_towers_board(uc_bits), first_turn: first_turn }
+        }
+    }
 }
 impl TGame27 for Game27Opt {
     fn new() -> Game27Opt {
