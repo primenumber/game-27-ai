@@ -162,33 +162,41 @@ impl<T: TGame27> AlphaBetaPlayer<T> {
     }
     fn alpha_beta_root(&mut self, b: &T) -> Action {
         use rand::prelude::*;
-        self.memo.clear();
-        let mut result = -10000;
-        let mut alpha = -1800;
-        let mut rng = rand::thread_rng();
-        let mut same_count = 0;
+        use std::time::Instant;
+        let start = Instant::now();
         let mut action = None;
-        let depth = 18;
-        for p in b.playable() {
-            let mut next = b.clone();
-            next.act(p).unwrap();
-            let next_depth = match p {
-                Action::Pass => depth,
-                _ => depth-1,
-            };
-            let child_result = -self.alpha_beta(&next, -1800, -alpha, next_depth);
-            if child_result >= result {
-                if child_result == result {
-                    same_count += 1;
-                    if rng.gen::<f64>() <= 1.0 / same_count as f64 {
+        let time_limit = 800; // as milliseconds
+        for depth in 8..40 { // iterative deepening
+            self.memo.clear();
+            let mut result = -10000;
+            let mut alpha = -1800;
+            let mut rng = rand::thread_rng();
+            let mut same_count = 0;
+            for p in b.playable() {
+                let mut next = b.clone();
+                next.act(p).unwrap();
+                let next_depth = match p {
+                    Action::Pass => depth,
+                    _ => depth-1,
+                };
+                let child_result = -self.alpha_beta(&next, -1800, -alpha, next_depth);
+                if child_result >= result {
+                    if child_result == result {
+                        same_count += 1;
+                        if rng.gen::<f64>() <= 1.0 / same_count as f64 {
+                            action = Some(p);
+                        }
+                    } else {
+                        result = child_result;
+                        same_count = 0;
                         action = Some(p);
                     }
-                } else {
-                    result = child_result;
-                    same_count = 0;
-                    action = Some(p);
+                    alpha = max(alpha, child_result);
                 }
-                alpha = max(alpha, child_result);
+            }
+            let end = start.elapsed();
+            if end.as_millis() > time_limit {
+                break;
             }
         }
         action.unwrap()
