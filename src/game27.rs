@@ -351,7 +351,7 @@ impl TGame27 for Game27Opt {
         Game27Opt { board: 0x000F_FFFC_0002_AAAA, first_turn: true }
     }
     fn playable(&self) -> Vec<Action> {
-        let mut res = vec![];
+        let mut res = Vec::with_capacity(SIZE);
         let mut top_bits = self.tower_tops();
         let mut bits = self.board;
         for c in 0..SIZE {
