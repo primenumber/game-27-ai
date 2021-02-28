@@ -130,6 +130,9 @@ impl<T: TGame27> AlphaBetaPlayer<T> {
         if depth == 0 || b.is_end() {
             return self.eval(b);
         }
+        if depth < 2 {
+            return self.alpha_beta_impl(b, alpha, beta, depth);
+        }
         let (lower, upper) = match self.memo.get(b) {
             Some(&(lower, upper)) => {
                 if alpha >= upper {
