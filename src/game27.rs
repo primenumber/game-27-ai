@@ -215,6 +215,27 @@ impl Game27Opt {
     fn move_to(&self, c: usize) -> isize {
         c as isize + self.count_tower() as isize * (if self.first_turn { 1 } else { -1 })
     }
+    fn is_movable(&self) -> bool {
+        let mut top_bits = self.tower_tops();
+        let mut bits = self.board;
+        for c in 0..SIZE {
+            let top_bit = top_bits & top_bits.wrapping_neg();
+            let tower = bits & (top_bit - 1);
+            top_bits ^= top_bit;
+            bits ^= tower;
+            if tower == 0 {
+                continue;
+            }
+            let is_tower_top_first = (top_bit & (tower << 3)) == 0;
+            if self.first_turn == is_tower_top_first {
+                let d = self.move_to(c);
+                if 0 <= d && d < SIZE as isize {
+                    return true;
+                }
+            }
+        }
+        false
+    }
     #[allow(dead_code)]
     fn tower_sizes(&self) -> [usize; SIZE] {
         let mut result = [0; SIZE];
@@ -386,12 +407,12 @@ impl TGame27 for Game27Opt {
         }
     }
     fn is_end(&self) -> bool {
-        if self.playable()[0] == Action::Pass {
+        if !self.is_movable() {
             let mut s = self.clone();
             s.first_turn = !s.first_turn;
-            return s.playable()[0] == Action::Pass
+            return !s.is_movable();
         }
-        return false;
+        false
     }
     fn act(&mut self, a: Action) -> Result<(), String> {
         if self.is_end() {
@@ -435,8 +456,7 @@ impl TGame27 for Game27Opt {
                 }
             }
             Action::Pass => {
-                let playable = self.playable();
-                if  !(playable.len() == 1 && playable[0] == Action::Pass) {
+                if self.is_movable() {
                     return Err(format!("There are playable moves"))
                 }
             }
