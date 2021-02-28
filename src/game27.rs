@@ -545,4 +545,19 @@ mod tests {
             assert_eq!(board.to_game27(), board_naive);
         }
     }
+    #[test]
+    fn test_board_opt_encode_decode() {
+        let mut board = Game27Opt::new();
+        println!("{}", board);
+
+        assert_eq!(board, Game27Opt::game_from_bits(board.compress_bits(), board.first_turn));
+
+        let moves = [(0, 4), (8, 8), (1, 4), (7, 4), (3, 4), (7, 3), (0, 4)];
+        for (c, i) in &moves {
+            println!("{} {}", c, i);
+            board.act(Action::Move(*c, *i)).unwrap();
+            println!("{}", board);
+            assert_eq!(board, Game27Opt::game_from_bits(board.compress_bits(), board.first_turn));
+        }
+    }
 }
