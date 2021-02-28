@@ -383,14 +383,15 @@ impl TGame27 for Game27Opt {
             if tower == 0 {
                 continue;
             }
+            let d = self.move_to(c);
+            if d < 0 || SIZE as isize <= d {
+                continue;
+            }
             let tower_size = (tower & BOARD_MASK).count_ones() as usize;
             let is_tower_top_first = (top_bit & (tower << 3)) == 0;
             if self.first_turn == is_tower_top_first {
                 for i in 1..=tower_size {
-                    let d = self.move_to(c);
-                    if 0 <= d && d < SIZE as isize {
-                        res.push(Action::Move(c, i))
-                    }
+                    res.push(Action::Move(c, i))
                 }
             }
         }
