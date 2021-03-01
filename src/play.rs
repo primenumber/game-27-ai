@@ -182,9 +182,18 @@ impl<T: TGame27, E: TEvaluator<Game = T>> AlphaBetaPlayer<T, E> {
             vp.push((p, self.evaluator.eval(&next), next));
         }
         vp.sort_by(|a, b| a.1.cmp(&b.1));
-        for (p, v, next) in vp {
-            let next_depth = depth - 1;
-            let child_result = -self.alpha_beta(&next, -beta, -alpha, next_depth);
+        for (idx, (p, v, next)) in vp.iter().enumerate() {
+            let mut child_result;
+            if idx == 0 {
+                let next_depth = depth - 1;
+                child_result = -self.alpha_beta(&next, -beta, -alpha, next_depth);
+            } else {
+                let next_depth = depth - 1;
+                child_result = -self.alpha_beta(&next, -alpha-1, -alpha, next_depth);
+                if alpha < child_result && child_result < beta {
+                    child_result = -self.alpha_beta(&next, -beta, -child_result, next_depth);
+                }
+            }
             result = max(result, child_result);
             if result >= beta {
                 return result;
