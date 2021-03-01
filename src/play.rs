@@ -173,7 +173,27 @@ impl<T: TGame27, E: TEvaluator<Game = T>> AlphaBetaPlayer<T, E> {
             evaluator: E::new(),
         }
     }
-    fn alpha_beta_impl(&mut self, b: &T, mut alpha: isize, beta: isize, depth: isize) -> isize {
+    fn alpha_beta_move_ordering(&mut self, b: &T, mut alpha: isize, beta: isize, depth: isize) -> isize {
+        let mut result = -10000;
+        let mut vp = Vec::new();
+        for p in b.playable_generator() {
+            let mut next = b.clone();
+            next.act(p).unwrap();
+            vp.push((p, self.evaluator.eval(&next), next));
+        }
+        vp.sort_by(|a, b| a.1.cmp(&b.1));
+        for (p, v, next) in vp {
+            let next_depth = depth - 1;
+            let child_result = -self.alpha_beta(&next, -beta, -alpha, next_depth);
+            result = max(result, child_result);
+            if result >= beta {
+                return result;
+            }
+            alpha = max(alpha, result);
+        }
+        result
+    }
+    fn alpha_beta_naive(&mut self, b: &T, mut alpha: isize, beta: isize, depth: isize) -> isize {
         let mut result = -10000;
         for p in b.playable_generator() {
             let mut next = b.clone();
@@ -187,6 +207,13 @@ impl<T: TGame27, E: TEvaluator<Game = T>> AlphaBetaPlayer<T, E> {
             alpha = max(alpha, result);
         }
         result
+    }
+    fn alpha_beta_impl(&mut self, b: &T, alpha: isize, beta: isize, depth: isize) -> isize {
+        if depth < 3 {
+            self.alpha_beta_naive(b, alpha, beta, depth)
+        } else {
+            self.alpha_beta_move_ordering(b, alpha, beta, depth)
+        }
     }
     fn alpha_beta(&mut self, b: &T, alpha: isize, beta: isize, depth: isize) -> isize {
         if depth == 0 || b.is_end() {
