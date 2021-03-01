@@ -288,6 +288,7 @@ impl<T: TGame27, E: TEvaluator<Game = T>> AlphaBetaPlayer<T, E> {
             }
             let end = start.elapsed();
             if end.as_millis() > time_limit {
+                eprintln!("elapsed: {}ms, max_depth: {}", end.as_millis(), depth);
                 break;
             }
         }
