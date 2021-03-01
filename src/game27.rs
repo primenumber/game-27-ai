@@ -16,6 +16,7 @@ pub trait TGame27: Eq + Hash + Clone {
     fn is_end(&self) -> bool;
     fn act(&mut self, a: Action) -> Result<(), String>;
     fn result(&self) -> isize;
+    fn tower_summaries(&self) -> [(usize, Option<Piece>); SIZE];
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -141,6 +142,13 @@ impl TGame27 for Game27 {
         let f = self.board[SIZE-1].len();
         let s = self.board[0].len();
         f as isize - s as isize
+    }
+    fn tower_summaries(&self) -> [(usize, Option<Piece>); SIZE] {
+        let mut result = [(0, None); SIZE];
+        for i in 0..SIZE {
+            result[i] = (self.board[i].len(), self.board[i].first().copied());
+        }
+        result
     }
 }
 use std::fmt;
@@ -561,6 +569,28 @@ impl TGame27 for Game27Opt {
         let first_tower = self.board & (top_bits ^ (top_bits - 1));
         let s = (first_tower & BOARD_MASK).count_ones();
         f as isize - s as isize
+    }
+    fn tower_summaries(&self) -> [(usize, Option<Piece>); SIZE] {
+        let mut result = [(0, None); SIZE];
+        let mut top_bits = self.tower_tops();
+        let mut bits = self.board;
+        for i in 0..SIZE {
+            let bit = top_bits & top_bits.wrapping_neg();
+            top_bits ^= bit;
+            let tower = bits & (bit - 1);
+            bits ^= tower;
+            let piece = if ((bit >> 2) & self.board) == 0 {
+                None
+            } else {
+                if ((bit >> 3) & self.board) == 0 {
+                    Some(Piece::First)
+                } else {
+                    Some(Piece::Second)
+                }
+            };
+            result[i] = ((tower & BOARD_MASK).count_ones() as usize, piece);
+        }
+        result
     }
 }
 impl fmt::Display for Game27Opt {
