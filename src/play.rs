@@ -82,33 +82,95 @@ impl RandomPlayer {
     }
 }
 
-use std::cmp::{max, min};
+trait TEvaluator {
+    type Game: TGame27;
+    fn new() -> Self;
+    fn eval(&self, b: &Self::Game) -> isize;
+    fn max_score(&self) -> isize;
+}
+
+use std::marker::PhantomData;
 
 #[derive(Debug, Clone)]
-struct AlphaBetaPlayer<T: TGame27> {
-    board: Option<T>,
-    first: bool,
-    memo: HashMap<T, (isize, isize)>,
+struct NaiveEvaluator<T: TGame27> {
+    _marker: PhantomData<fn() -> T>,
 }
-impl<T: TGame27> AlphaBetaPlayer<T> {
-    fn new() -> AlphaBetaPlayer<T> {
-        AlphaBetaPlayer {
-            board: None,
-            first: false,
-            memo: HashMap::<T, (isize, isize)>::new(),
+impl<T: TGame27> TEvaluator for NaiveEvaluator<T> {
+    type Game = T;
+    fn new() -> Self {
+        NaiveEvaluator {
+            _marker: PhantomData {}
         }
     }
+    fn eval(&self, b: &T) -> isize {
+        if b.active() == Piece::First {
+            b.result()
+        } else {
+            -b.result()
+        }
+    }
+    fn max_score(&self) -> isize {
+        18
+    }
+}
+
+#[derive(Debug, Clone)]
+struct TowerCountEvaluator<T: TGame27> {
+    _marker: PhantomData<fn() -> T>,
+}
+impl<T: TGame27> TowerCountEvaluator<T> {
     fn eval_impl(&self, b: &T) -> isize {
         if b.is_end() {
             return b.result() * 100;
+        } else {
+            let summary = b.tower_summaries();
+            let mut pt: isize = 0;
+            for (_len, owner) in &summary {
+                match owner {
+                    Some(Piece::First) => pt += 1,
+                    Some(Piece::Second) => pt -= 1,
+                    None => ()
+                }
+            }
+            pt * 20
         }
-        return b.result() * 100;
+    }
+}
+impl<T: TGame27> TEvaluator for TowerCountEvaluator<T> {
+    type Game = T;
+    fn new() -> Self {
+        TowerCountEvaluator {
+            _marker: PhantomData {}
+        }
     }
     fn eval(&self, b: &T) -> isize {
         if b.active() == Piece::First {
             self.eval_impl(b)
         } else {
             -self.eval_impl(b)
+        }
+    }
+    fn max_score(&self) -> isize {
+        18 * 100
+    }
+}
+
+use std::cmp::{max, min};
+
+#[derive(Debug, Clone)]
+struct AlphaBetaPlayer<T: TGame27, E: TEvaluator<Game = T>> {
+    board: Option<T>,
+    first: bool,
+    memo: HashMap<T, (isize, isize)>,
+    evaluator: E,
+}
+impl<T: TGame27, E: TEvaluator<Game = T>> AlphaBetaPlayer<T, E> {
+    fn new() -> AlphaBetaPlayer<T, E> {
+        AlphaBetaPlayer {
+            board: None,
+            first: false,
+            memo: HashMap::<T, (isize, isize)>::new(),
+            evaluator: E::new(),
         }
     }
     fn alpha_beta_impl(&mut self, b: &T, mut alpha: isize, beta: isize, depth: isize) -> isize {
@@ -128,11 +190,12 @@ impl<T: TGame27> AlphaBetaPlayer<T> {
     }
     fn alpha_beta(&mut self, b: &T, alpha: isize, beta: isize, depth: isize) -> isize {
         if depth == 0 || b.is_end() {
-            return self.eval(b);
+            return self.evaluator.eval(b);
         }
         if depth < 2 {
             return self.alpha_beta_impl(b, alpha, beta, depth);
         }
+        let max_score = self.evaluator.max_score();
         let (lower, upper) = match self.memo.get(b) {
             Some(&(lower, upper)) => {
                 if alpha >= upper {
@@ -142,15 +205,17 @@ impl<T: TGame27> AlphaBetaPlayer<T> {
                 }
                 (lower, upper)
             }
-            None => (-1800, 1800)
+            None => {
+                (-max_score, max_score)
+            }
         };
         let new_alpha = max(alpha, lower);
         let new_beta = min(beta, upper);
         let result = self.alpha_beta_impl(b, new_alpha, new_beta, depth);
         let new_range = if result <= new_alpha {
-            (-1800, result)
+            (-max_score, result)
         } else if result >= new_beta {
-            (result, 1800)
+            (result, max_score)
         } else {
             (result, result)
         };
@@ -162,13 +227,14 @@ impl<T: TGame27> AlphaBetaPlayer<T> {
     fn alpha_beta_root(&mut self, b: &T) -> Action {
         use rand::prelude::*;
         use std::time::Instant;
+        let max_score = self.evaluator.max_score();
         let start = Instant::now();
         let mut action = None;
         let time_limit = 800; // as milliseconds
         for depth in 8..40 { // iterative deepening
             self.memo.clear();
-            let mut result = -10000;
-            let mut alpha = -1800;
+            let mut result = -max_score - 1;
+            let mut alpha = -max_score;
             let mut rng = rand::thread_rng();
             let mut same_count = 0;
             for p in b.playable() {
@@ -178,7 +244,7 @@ impl<T: TGame27> AlphaBetaPlayer<T> {
                     Action::Pass => depth,
                     _ => depth-1,
                 };
-                let child_result = -self.alpha_beta(&next, -1800, -alpha, next_depth);
+                let child_result = -self.alpha_beta(&next, -max_score, -alpha, next_depth);
                 if child_result >= result {
                     if child_result == result {
                         same_count += 1;
@@ -238,7 +304,7 @@ impl<T: TGame27> AlphaBetaPlayer<T> {
 }
 pub fn start() -> Result<(), String> {
     use std::io::{self, BufRead};
-    let mut player = AlphaBetaPlayer::<Game27Opt>::new();
+    let mut player = AlphaBetaPlayer::<Game27Opt, TowerCountEvaluator<Game27Opt>>::new();
     let stdin = io::stdin();
     for line in stdin.lock().lines() {
         let resp = player.play(&line.unwrap());
