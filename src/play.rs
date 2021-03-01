@@ -175,14 +175,14 @@ impl<T: TGame27, E: TEvaluator<Game = T>> AlphaBetaPlayer<T, E> {
     }
     fn alpha_beta_move_ordering(&mut self, b: &T, mut alpha: isize, beta: isize, depth: isize) -> isize {
         let mut result = -10000;
-        let mut vp = Vec::new();
+        let mut vnexts = Vec::new();
         for p in b.playable_generator() {
             let mut next = b.clone();
             next.act(p).unwrap();
-            vp.push((p, self.evaluator.eval(&next), next));
+            vnexts.push((self.evaluator.eval(&next), next));
         }
-        vp.sort_by(|a, b| a.1.cmp(&b.1));
-        for (idx, (p, v, next)) in vp.iter().enumerate() {
+        vnexts.sort_by(|a, b| a.0.cmp(&b.0));
+        for (idx, (_v, next)) in vnexts.iter().enumerate() {
             let mut child_result;
             if idx == 0 {
                 let next_depth = depth - 1;
