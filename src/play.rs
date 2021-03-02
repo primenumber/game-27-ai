@@ -275,14 +275,22 @@ impl<T: TGame27, E: TEvaluator<Game = T>> AlphaBetaPlayer<T, E> {
             let mut alpha = -max_score;
             let mut rng = rand::thread_rng();
             let mut same_count = 0;
-            for p in b.playable() {
+            for (idx, p) in b.playable_generator().enumerate() {
                 let mut next = b.clone();
                 next.act(p).unwrap();
                 let next_depth = match p {
                     Action::Pass => depth,
                     _ => depth-1,
                 };
-                let child_result = -self.alpha_beta(&next, -max_score, -alpha, next_depth);
+                let mut child_result;
+                if idx == 0 {
+                    child_result = -self.alpha_beta(&next, -max_score, -alpha, next_depth);
+                } else {
+                    child_result = -self.alpha_beta(&next, -alpha-1, -alpha, next_depth);
+                    if alpha < child_result && child_result < max_score {
+                        child_result = -self.alpha_beta(&next, -max_score, -child_result, next_depth);
+                    }
+                }
                 if child_result >= result {
                     if child_result == result {
                         same_count += 1;
