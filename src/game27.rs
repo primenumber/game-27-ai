@@ -5,7 +5,7 @@ pub enum Piece {
     First,
     Second,
 }
-const SIZE: usize = 9;
+pub const SIZE: usize = 9;
 
 pub trait TGame27: Eq + Hash + Clone {
     type ActionItr: Iterator<Item=Action>;
