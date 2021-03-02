@@ -127,13 +127,13 @@ impl<T: TGame27> TowerCountEvaluator<T> {
             let mut pt: isize = 0;
             for (len, owner) in &summary {
                 match owner {
-                    Some(Piece::First) => pt += 30,
-                    Some(Piece::Second) => pt -= 30,
+                    Some(Piece::First) => pt += *len as isize * 18,
+                    Some(Piece::Second) => pt -= *len as isize * 18,
                     None => ()
                 }
             }
-            pt += summary[SIZE-1].0 as isize * 50;
-            pt -= summary[0].0 as isize * 50;
+            pt += summary[SIZE-1].0 as isize * 75;
+            pt -= summary[0].0 as isize * 75;
             pt
         }
     }
