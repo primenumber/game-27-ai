@@ -123,17 +123,18 @@ impl<T: TGame27> TowerCountEvaluator<T> {
         if b.is_end() {
             return b.result() * 100;
         } else {
+            let middle_tower_factor = 24;
             let summary = b.tower_summaries();
             let mut pt: isize = 0;
             for (len, owner) in &summary {
                 match owner {
-                    Some(Piece::First) => pt += *len as isize * 18,
-                    Some(Piece::Second) => pt -= *len as isize * 18,
+                    Some(Piece::First) => pt += *len as isize * middle_tower_factor,
+                    Some(Piece::Second) => pt -= *len as isize * middle_tower_factor,
                     None => ()
                 }
             }
-            pt += summary[SIZE-1].0 as isize * 75;
-            pt -= summary[0].0 as isize * 75;
+            pt += summary[SIZE-1].0 as isize * (100 - middle_tower_factor);
+            pt -= summary[0].0 as isize * (100 - middle_tower_factor);
             pt
         }
     }
