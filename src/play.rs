@@ -283,7 +283,7 @@ impl<T: TGame27, E: TEvaluator<Game = T>> AlphaBetaPlayer<T, E> {
         let max_score = self.evaluator.max_score();
         let start = Instant::now();
         let mut action = None;
-        let time_limit = 1000; // as milliseconds
+        let time_limit = 50; // as milliseconds
         let vnexts = self.move_ordering_by_eval(b);
         for depth in 8..40 { // iterative deepening
             self.memo.clear();
