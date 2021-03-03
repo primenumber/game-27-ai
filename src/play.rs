@@ -176,15 +176,29 @@ impl<T: TGame27, E: TEvaluator<Game = T>> AlphaBetaPlayer<T, E> {
             evaluator: E::new(),
         }
     }
-    fn alpha_beta_move_ordering(&mut self, b: &T, mut alpha: isize, beta: isize, depth: isize) -> isize {
-        let mut result = -10000;
-        let mut vnexts = Vec::new();
+    fn move_ordering_by_eval(&self, b: &T) -> Vec<(isize, Action, T)> {
+        let mut vnexts = Vec::with_capacity(SIZE);
+        for p in b.playable_generator() {
+            let mut next = b.clone();
+            next.act(p).unwrap();
+            vnexts.push((self.evaluator.eval(&next), p, next));
+        }
+        vnexts.sort_by(|a, b| a.0.cmp(&b.0));
+        vnexts
+    }
+    fn move_ordering_by_eval_without_action(&self, b: &T) -> Vec<(isize, T)> {
+        let mut vnexts = Vec::with_capacity(SIZE);
         for p in b.playable_generator() {
             let mut next = b.clone();
             next.act(p).unwrap();
             vnexts.push((self.evaluator.eval(&next), next));
         }
         vnexts.sort_by(|a, b| a.0.cmp(&b.0));
+        vnexts
+    }
+    fn alpha_beta_move_ordering(&mut self, b: &T, mut alpha: isize, beta: isize, depth: isize) -> isize {
+        let mut result = -10000;
+        let vnexts = self.move_ordering_by_eval_without_action(b);
         for (idx, (_v, next)) in vnexts.iter().enumerate() {
             let mut child_result;
             if idx == 0 {
@@ -270,19 +284,15 @@ impl<T: TGame27, E: TEvaluator<Game = T>> AlphaBetaPlayer<T, E> {
         let start = Instant::now();
         let mut action = None;
         let time_limit = 1000; // as milliseconds
+        let vnexts = self.move_ordering_by_eval(b);
         for depth in 8..40 { // iterative deepening
             self.memo.clear();
             let mut result = -max_score - 1;
             let mut alpha = -max_score;
             let mut rng = rand::thread_rng();
             let mut same_count = 0;
-            for (idx, p) in b.playable_generator().enumerate() {
-                let mut next = b.clone();
-                next.act(p).unwrap();
-                let next_depth = match p {
-                    Action::Pass => depth,
-                    _ => depth-1,
-                };
+            for (idx, (_v, p, next)) in vnexts.iter().enumerate() {
+                let next_depth = depth - 1;
                 let mut child_result;
                 if idx == 0 {
                     child_result = -self.alpha_beta(&next, -max_score, -alpha, next_depth);
@@ -296,12 +306,12 @@ impl<T: TGame27, E: TEvaluator<Game = T>> AlphaBetaPlayer<T, E> {
                     if child_result == result {
                         same_count += 1;
                         if rng.gen::<f64>() <= 1.0 / same_count as f64 {
-                            action = Some(p);
+                            action = Some(*p);
                         }
                     } else {
                         result = child_result;
                         same_count = 0;
-                        action = Some(p);
+                        action = Some(*p);
                     }
                     alpha = max(alpha, child_result);
                 }
